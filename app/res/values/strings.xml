@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Tap-A-Mole</string>
+    <string name="title_activity_first">FirstActivity</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="second"><i>s</i></string>
+    <string name="millisecond"><i>ms</i></string>
+    <string name="title_activity_settings">Settings</string>
+    
+
+    
+</resources>
