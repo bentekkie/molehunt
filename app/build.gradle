@@ -5,7 +5,7 @@ android {
         config {
             keyAlias 'dragonfruitbentekkie'
             keyPassword 'dragon'
-            storeFile file('/Users/bentekkie/Documents/dragon.jks')
+            storeFile file('C:/Users/Ben/dragon.jks')
             storePassword 'dragon'
         }
     }

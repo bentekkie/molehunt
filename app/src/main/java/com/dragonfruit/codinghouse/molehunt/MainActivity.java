@@ -2,8 +2,8 @@ package com.dragonfruit.codinghouse.molehunt;
 
 import com.dragonfruit.codinghouse.molehunt.GameHelper.GameHelperListener;
 import com.google.android.gms.games.Games;
-import com.google.android.gms.ads.AdView;
-
+//import com.google.android.gms.ads.AdView;
+import android.os.ParcelFileDescriptor;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
-
 import android.R.drawable;
 import android.animation.LayoutTransition;
 import android.app.Activity;
@@ -61,8 +60,8 @@ implements View.OnClickListener {
 
 
 	public RelativeLayout layout;
-	private AdView adView;
-    FileInputStream inputStream;
+//	private AdView adView;
+//    FileInputStream inputStream;
     ImageView preview;
 	AlertDialog dialog;
 	Boolean Signedin;
@@ -133,7 +132,6 @@ implements View.OnClickListener {
     Button leaderButton;
     static File imagePath;
     static File molePath;
-    Bitmap bitmap;
     int[] generalButtonDimention;
     int[] generalTextDimention;
     int[] shareButtonDimention;
@@ -157,8 +155,9 @@ implements View.OnClickListener {
     LayoutParams shareTextLayout;
     ImageView shareName;
     int soundfile;
+    Bitmap customMole;
 	BitmapDrawable bitmapDrawable;
-    Boolean customImage;
+    Boolean customImage = false;
 	int gameMode;
     final Handler   myHandler   = new Handler() {
         @Override
@@ -180,7 +179,7 @@ implements View.OnClickListener {
         public void handleMessage(Message msg)
         {
         	setupEndScreen();
-        	if(Signedin == false){
+        	if(!Signedin){
     			leaderButton.setText("Sign in");
     		}else{
     			leaderButton.setText(leaderButtonText);
@@ -192,15 +191,15 @@ implements View.OnClickListener {
     			editor.putInt("many", progress);
     			editor.commit();
         	}else if(progress <= highscore){
-        		timed.setText(progress+" Moles hit!\n"+"Highscore is "+highscore+" Moles");
+        		timed.setText(progress+" Moles hit!\n"+"Highscore is "+highscore);
         	}else if(progress > highscore){
-        		timed.setText(progress+" Moles hit!\n"+(progress-highscore)+"more than Highscore!");
+        		timed.setText(progress+" Moles hit!\n"+(progress-highscore)+"> Highscore!");
         		timed.setText(progress+" Moles hit!");
         		Editor editor = prefs.edit();
     			editor.putInt("many", progress);
     			editor.commit();
         	}
-        	if(Signedin == true){
+        	if(Signedin){
     			Games.Leaderboards.submitScore(mHelper.getApiClient(), getString(R.string.leaderboard_many), progress);
     			Games.Achievements.unlock(mHelper.getApiClient(), getString(R.string.achievement_beginner));
     			Games.Achievements.increment(mHelper.getApiClient(), getString(R.string.achievement_marathon), 1);
@@ -241,44 +240,62 @@ protected void onActivityResult(int request, int response, Intent data) {
     mHelper.onActivityResult(request, response, data);
 
 
-        if (request == 1) {
-            final Bundle extras = data.getExtras();
-
-            if (extras != null) {
-                Bitmap photo = extras.getParcelable("data");
-                FileOutputStream fos;
-                try {
-                    molePath.createNewFile();
-                    Bitmap bitmap =photo;
-                    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                    bitmap.compress(CompressFormat.PNG, 0 /*ignored for PNG*/, bos);
-                    byte[] bitmapdata = bos.toByteArray();
-
-//write the bytes in file
-                    fos = new FileOutputStream(molePath);
-                    fos.write(bitmapdata);
-                } catch (FileNotFoundException e) {
-                    Log.e("GREC", e.getMessage(), e);
-                } catch (IOException e) {
-                    Log.e("GREC", e.getMessage(), e);
-                }
-
-                Bitmap temp;
-                File file = new File(getApplicationContext().getFilesDir(), "mole");
-                final BitmapFactory.Options options = new BitmapFactory.Options();
-                options.inSampleSize = 8;
-                temp =BitmapFactory.decodeFile(Environment.getExternalStorageDirectory()+"/tamcustomimage.png",options);
-                preview.setImageBitmap(photo);
-                Editor editor = prefs.edit();
-                editor.putBoolean("customImage", true);
-                editor.commit();
-                customImage = true;
-            }
+        if (response == RESULT_OK && request == 1 && null != data) {
+            decodeUri(data.getData());
         }
 }
+
+    public void decodeUri(Uri uri) {
+        ParcelFileDescriptor parcelFD = null;
+        try {
+            parcelFD = getContentResolver().openFileDescriptor(uri, "r");
+            FileDescriptor imageSource = parcelFD.getFileDescriptor();
+
+            // Decode image size
+            BitmapFactory.Options o = new BitmapFactory.Options();
+            o.inJustDecodeBounds = true;
+            BitmapFactory.decodeFileDescriptor(imageSource, null, o);
+
+            // the new size we want to scale to
+            final int REQUIRED_SIZE = 1024;
+
+            // Find the correct scale value. It should be the power of 2.
+            int width_tmp = o.outWidth, height_tmp = o.outHeight;
+            int scale = 1;
+            while (true) {
+                if (width_tmp < REQUIRED_SIZE && height_tmp < REQUIRED_SIZE) {
+                    break;
+                }
+                width_tmp /= 2;
+                height_tmp /= 2;
+                scale *= 2;
+            }
+
+            // decode with inSampleSize
+            BitmapFactory.Options o2 = new BitmapFactory.Options();
+            o2.inSampleSize = scale;
+            customMole = BitmapFactory.decodeFileDescriptor(imageSource, null, o2);
+            Editor editor = prefs.edit();
+            editor.putBoolean("customImage", true);
+            editor.commit();
+            customImage = true;
+
+            preview.setImageBitmap(customMole);
+
+        } catch (FileNotFoundException e) {
+            // handle errors
+        } finally {
+            if (parcelFD != null)
+                try {
+                    parcelFD.close();
+                } catch (IOException e) {
+                    // ignored
+                }
+        }
+    }
 public void setupVars(){
     preview = new ImageView(this);
-	adView = new AdView(this);
+//	adView = new AdView(this);
 	sd = new ShapeDrawable();
 	sd.setShape(new RoundRectShape(new float[]{2,2,2,2,2,2,2,2}, null, null));
 	Bitmap bmp = BitmapFactory.decodeResource(getResources(), R.raw.brown016);
@@ -377,20 +394,15 @@ public void setupStartScreen(){
   //  .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
  //   .addTestDevice("INSERT_YOUR_HASHED_DEVICE_ID_HERE")
 //    .build();
-    LayoutParams ad = new LayoutParams(metrics.widthPixels,100,Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
+   // LayoutParams ad = new LayoutParams(metrics.widthPixels,100,Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
 //    adView.loadAd(adRequest);
 //    adView.setId(5);
     backround.setBackground(bitmapDrawable);
     frame.addView(backround);
 //    frame.addView(adView, ad);
-    if(molePath.exists()){
-        Bitmap temp;
+    if(customImage){
 
-            File file = new File(getApplicationContext().getFilesDir(), "mole");
-            final BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inSampleSize = 8;
-            temp = BitmapFactory.decodeFile(Environment.getExternalStorageDirectory()+"/tamcustomimage.png",options);
-            preview.setImageBitmap(temp);
+            preview.setImageBitmap(customMole);
 
     }else{
 
@@ -488,9 +500,13 @@ public ImageButton generateButton(){
 	button = new ImageButton (this);
 	final BitmapFactory.Options options = new BitmapFactory.Options();
     options.inSampleSize = 8;
-	Bitmap bf = BitmapFactory.decodeResource(getResources(), R.raw.mole2, options);
 
-	bm = Bitmap.createScaledBitmap( bf , lp.height-10, lp.width, true);
+	Bitmap bf = BitmapFactory.decodeResource(getResources(), R.raw.mole2, options);
+    if(customImage){
+        bf = customMole;
+    }
+    //noinspection SuspiciousNameCombination
+    bm = Bitmap.createScaledBitmap( bf , lp.height-10, lp.width, true);
 	drawTextToBitmap(this,bm,"20");
 	button.setImageBitmap(drawTextToBitmap(this,bm,"20"));
 	button.setBackgroundColor(Color.TRANSPARENT); 
@@ -501,8 +517,7 @@ public ImageButton generateButton(){
 
 public int randomInt(int size){
 	Random r = new Random();
-	int b = r.nextInt(size);
-	return b;
+	return r.nextInt(size);
 }
 public void destroyEndScreen(){
 	end.removeAllViews();
@@ -625,7 +640,7 @@ public void onClick(View view) {
 		int tickstemp = ticks;
 		int highscore = prefs.getInt("key", 0);
 		time = Integer.toString(tickstemp);
-		if(Signedin == false){
+		if(!Signedin){
 			leaderButton.setText("Sign in");
 		}else{
 			leaderButton.setText(leaderButtonText);
@@ -670,7 +685,7 @@ public void onClick(View view) {
 			Editor editor = prefs.edit();
 			editor.putInt("key", tickstemp);
 			editor.commit();
-			if(Signedin == true){
+			if(Signedin){
 			Games.Leaderboards.submitScore(mHelper.getApiClient(), getString(R.string.leaderboard_fast), tickstemp);
 			}
 		}
@@ -678,11 +693,11 @@ public void onClick(View view) {
 			Editor editor = prefs.edit();
 			editor.putInt("key", tickstemp);
 			editor.commit();
-			if(Signedin == true){
+			if(Signedin){
 			Games.Leaderboards.submitScore(mHelper.getApiClient(), getString(R.string.leaderboard_fast), tickstemp);
 			}
 		}
-		if(Signedin == true){
+		if(Signedin){
 			Games.Achievements.unlock(mHelper.getApiClient(), getString(R.string.achievement_beginner));
 			Games.Achievements.increment(mHelper.getApiClient(), getString(R.string.achievement_marathon), 1);
 			Games.Achievements.increment(mHelper.getApiClient(), getString(R.string.achievement_addict), 1);
@@ -747,8 +762,9 @@ public void onClick(View view) {
 	    destroyEndScreen();
 	}else if(view.getTag() == shareButtonTag){
 		setupShare();
-		while(generateShare(timed.getText()) == false){	
-		};
+        //noinspection StatementWithEmptyBody
+        while(!generateShare(timed.getText())){
+		}
 		destroyShare();
 		Intent sharingIntent = new Intent(android.content.Intent.ACTION_SEND); 
 	    sharingIntent.setType("image/jpeg");
@@ -756,14 +772,14 @@ public void onClick(View view) {
 	    sharingIntent.putExtra(android.content.Intent.EXTRA_TITLE, "Share your score!");
 	    sharingIntent.putExtra(android.content.Intent.EXTRA_STREAM, Uri.fromFile(imagePath));
 	    startActivity(Intent.createChooser(sharingIntent, "Share via"));
-		if(Signedin == true){
+		if(Signedin){
 			Games.Achievements.unlock(mHelper.getApiClient(), getString(R.string.achievement_socialite));
 		}
 		end.setBackground(bitmapDrawable);
 	}else if(view.getTag() == clearButtonTag){
 		dialog.show();
 	}else if(view.getTag() == leaderButtonTag){
-		if(Signedin == true){
+		if(Signedin){
 			if(gameMode == 0){
 				startActivityForResult(Games.Leaderboards.getLeaderboardIntent(mHelper.getApiClient(), getString(R.string.leaderboard_fast)), 5);
 			}else if(gameMode ==1){
@@ -773,19 +789,21 @@ public void onClick(View view) {
 		mHelper.beginUserInitiatedSignIn();
 		}
 	}else if(view.getTag() == resetImageTag){
-
+        final BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = 8;
+        Bitmap bf = BitmapFactory.decodeResource(getResources(), R.raw.mole2, options);
+        preview.setImageBitmap(bf);
         Editor editor = prefs.edit();
         editor.putBoolean("customImage", false);
         editor.commit();
-        getApplicationContext().deleteFile("mole");
         customImage = false;
     }else if(view.getTag() == changeImageTag){
         Intent intent = new Intent(Intent.ACTION_PICK,
-                android.provider.MediaStore.Images.Media.INTERNAL_CONTENT_URI);
+                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
 
         intent.setType("image/*");
         intent.putExtra("return-data", true);
-        startActivityForResult(intent, 1);
+        startActivityForResult(Intent.createChooser(intent, "Select Picture"), 1);
 
 
 
@@ -815,7 +833,8 @@ public void setupShare(){
 	shareScore.layout(0, 222, 504, 292);
 	shareFrame.setBackground(bd);
 	shareFrame.layout(0, 0, 504, 504);
-	shareName.setImageDrawable(getResources().getDrawable(R.raw.name));
+    //noinspection ResourceType
+    shareName.setImageDrawable(getResources().getDrawable(R.raw.name));
 	shareName.layout(0, 404, 504, 504);
 
 	shareText.setDrawingCacheEnabled(true);
@@ -853,12 +872,6 @@ public Boolean generateShare(CharSequence score){
 public void onConfigurationChanged(Configuration newConfig) {
     super.onConfigurationChanged(newConfig);
 
-    if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-       // setContentView();
-
-    } else {
-      //  setContentView(R.layout.portraitView);
-    }
 }
 public void setupGameServices(){
 	 GameHelperListener listener = new GameHelper.GameHelperListener() {
