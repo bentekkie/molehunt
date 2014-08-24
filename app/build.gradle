@@ -1,11 +1,20 @@
 apply plugin: 'com.android.application'
+import org.apache.tools.ant.taskdefs.condition.Os
+String path
+
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        path = 'C:/Users/Ben/dragon.jks'
+    }else if (Os.isFamily(Os.FAMILY_MAC)){
+        path = '/Users/bentekkie/Documents/dragon.jks'
+    }
 
 android {
     signingConfigs {
+
         config {
             keyAlias 'dragonfruitbentekkie'
             keyPassword 'dragon'
-            storeFile file('C:/Users/Ben/dragon.jks')
+            storeFile file(path)
             storePassword 'dragon'
         }
     }
